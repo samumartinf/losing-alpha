@@ -9,7 +9,7 @@ const DAY_IN_MS = 1000 * 60 * 60 * 24;
 
 export const sessionCookieName = 'auth-session';
 
-export function generateSessionToken() {
+export function generateSessionToken(): string {
 	const bytes = crypto.getRandomValues(new Uint8Array(18));
 	const token = encodeBase64url(bytes);
 	return token;
