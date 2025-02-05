@@ -1,0 +1,8 @@
+---
+description: Ensuring Svlete 5 and runes adherence
+globs: *.svelte
+---
+
+# Your rule content
+
+Svelte 5 and runes should be used when possible.
