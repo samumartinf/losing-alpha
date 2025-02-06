@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
-	import { ArrowRight, BarChart3, Wallet, Tags, LineChart, Shield } from 'lucide-svelte';
+	import { ArrowRight, BarChart3, Wallet, Tags } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import { getLoginUrl } from '$lib/utils';
 </script>
@@ -18,7 +18,7 @@
 				manage your entire portfolio in one place with professional-grade tools made simple.
 			</p>
 			<div class="mt-10 flex items-center justify-center gap-x-6">
-				<Button size="lg" on:click={() => goto(getLoginUrl())}>
+				<Button size="lg" onclick={() => goto(getLoginUrl())}>
 					Get Started
 					<ArrowRight class="ml-2 h-4 w-4" />
 				</Button>
@@ -55,15 +55,15 @@
 					<CardContent>
 						<ul class="mt-2 text-sm text-muted-foreground">
 							<li class="flex items-center gap-x-2">
-								<div class="h-1.5 w-1.5 rounded-full bg-primary" />
+								<div class="h-1.5 w-1.5 rounded-full bg-primary"></div>
 								Real-time market data
 							</li>
 							<li class="flex items-center gap-x-2 mt-2">
-								<div class="h-1.5 w-1.5 rounded-full bg-primary" />
+								<div class="h-1.5 w-1.5 rounded-full bg-primary"></div>
 								Automated price tracking
 							</li>
 							<li class="flex items-center gap-x-2 mt-2">
-								<div class="h-1.5 w-1.5 rounded-full bg-primary" />
+								<div class="h-1.5 w-1.5 rounded-full bg-primary"></div>
 								Custom asset categories
 							</li>
 						</ul>
@@ -82,15 +82,15 @@
 					<CardContent>
 						<ul class="mt-2 text-sm text-muted-foreground">
 							<li class="flex items-center gap-x-2">
-								<div class="h-1.5 w-1.5 rounded-full bg-primary" />
+								<div class="h-1.5 w-1.5 rounded-full bg-primary"></div>
 								Performance metrics
 							</li>
 							<li class="flex items-center gap-x-2 mt-2">
-								<div class="h-1.5 w-1.5 rounded-full bg-primary" />
+								<div class="h-1.5 w-1.5 rounded-full bg-primary"></div>
 								Risk analysis
 							</li>
 							<li class="flex items-center gap-x-2 mt-2">
-								<div class="h-1.5 w-1.5 rounded-full bg-primary" />
+								<div class="h-1.5 w-1.5 rounded-full bg-primary"></div>
 								Portfolio correlation
 							</li>
 						</ul>
@@ -109,15 +109,15 @@
 					<CardContent>
 						<ul class="mt-2 text-sm text-muted-foreground">
 							<li class="flex items-center gap-x-2">
-								<div class="h-1.5 w-1.5 rounded-full bg-primary" />
+								<div class="h-1.5 w-1.5 rounded-full bg-primary" > </div>
 								Custom portfolios
 							</li>
 							<li class="flex items-center gap-x-2 mt-2">
-								<div class="h-1.5 w-1.5 rounded-full bg-primary" />
+								<div class="h-1.5 w-1.5 rounded-full bg-primary"></div>
 								Flexible tagging system
 							</li>
 							<li class="flex items-center gap-x-2 mt-2">
-								<div class="h-1.5 w-1.5 rounded-full bg-primary" />
+								<div class="h-1.5 w-1.5 rounded-full bg-primary"></div>
 								Smart filters
 							</li>
 						</ul>
