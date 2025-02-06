@@ -21,11 +21,13 @@ export const actions: Actions = {
 		const password = formData.get('password');
 
 		if (!validateUsername(username)) {
+			console.log('Invalid username');
 			return fail(400, {
 				message: 'Invalid username (min 3, max 31 characters, alphanumeric only)'
 			});
 		}
 		if (!validatePassword(password)) {
+			console.log('Invalid password (min 6, max 255 characters)');
 			return fail(400, { message: 'Invalid password (min 6, max 255 characters)' });
 		}
 
@@ -33,6 +35,7 @@ export const actions: Actions = {
 
 		const existingUser = results.at(0);
 		if (!existingUser) {
+			console.log('User not found');
 			return fail(400, { message: 'Incorrect username or password' });
 		}
 
@@ -43,6 +46,7 @@ export const actions: Actions = {
 			parallelism: 1
 		});
 		if (!validPassword) {
+			console.log('Invalid password');
 			return fail(400, { message: 'Incorrect username or password' });
 		}
 

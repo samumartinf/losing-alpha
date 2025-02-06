@@ -25,3 +25,6 @@ pnpm db:migrate
 pnpm db:studio
 ```
 
+## TODO
+- [ ] user-login-form.svelte should provide user feedback on wrong password, username not found, etc.
+- [ ] add barebones structure to the main dashboard page with a sidebar and a main content area
