@@ -6,5 +6,9 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function getLoginUrl() {
-	return '/demo/lucia/login';
+	return '/auth/login';
+}
+
+export function getApplicationUrl() {
+	return '/demo';
 }
