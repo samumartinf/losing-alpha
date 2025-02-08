@@ -30,7 +30,7 @@
 		},
 		{
 			title: 'Settings',
-			url: '#',
+			url: '/auth',
 			icon: Settings
 		}
 	];
@@ -39,7 +39,7 @@
 <Sidebar.Root>
 	<Sidebar.Content>
 		<Sidebar.Group>
-			<Sidebar.GroupLabel>Application</Sidebar.GroupLabel>
+			<Sidebar.GroupLabel>Losing Alpha</Sidebar.GroupLabel>
 			<Sidebar.GroupContent>
 				<Sidebar.Menu>
 					{#each items as item (item.title)}

@@ -29,16 +29,16 @@
 				name: 'Price',
 				data: values,
 				itemStyle: {
-					color: '#FD1050',
-					color0: '#0CF49B',
-					borderColor: '#FD1050',
-					borderColor0: '#0CF49B'
+					color: '#0CF49B',
+					color0: '#FD1050',
+					borderColor: '#0CF49B',
+					borderColor0: '#FD1050'
 				}
 			}
 		]); 
 
 	let options: echarts.EChartsOption = $derived({
-		animation: false,
+		animation: true,
 		tooltip: {
 			trigger: 'axis',
 			axisPointer: {
