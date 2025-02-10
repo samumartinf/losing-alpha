@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 
 const CRYPTO_API_URL = 'https://api.coingecko.com/api/v3';
 const STOCK_API_URL = 'https://finnhub.io/api/v1';
-
+const ALPHA_VANTAGE_API_URL = 'https://www.alphavantage.co/query';
 export type MarketData = {
     symbol: string;
     name: string;
@@ -87,3 +87,38 @@ export async function fetchStockData(symbol: string): Promise<MarketData | null>
         return null;
     }
 } 
+
+export interface AlphaVantageMatch {
+    "1. symbol": string;
+    "2. name": string;
+    "3. type": string;
+    "4. region": string;
+    "5. marketOpen": string;
+    "6. marketClose": string;
+    "7. timezone": string;
+    "8. currency": string;
+    "9. matchScore": string;
+}
+
+export interface AlphaVantageSearchResponse {
+    bestMatches: AlphaVantageMatch[];
+}
+
+/**
+ * Finds a ticker for a given symbol using the Alpha Vantage API.
+ * 
+ * @param symbol - The symbol to search for
+ * @returns Promise resolving to the response from the Alpha Vantage API
+ */
+export async function findTicker(symbol: string): Promise<AlphaVantageMatch[]> {
+    var apiKey = import.meta.env.VITE_ALPHA_VANTAGE_API_KEY;
+    var url = `${ALPHA_VANTAGE_API_URL}?function=SYMBOL_SEARCH&keywords=${symbol}&apikey=${apiKey}`;
+    try {
+        var response = await fetch(url);
+        var data = await response.json() as AlphaVantageSearchResponse;
+        return data.bestMatches;
+    } catch (err) {
+        console.error('Error fetching ticker:', err);
+        return [];
+    }
+}
