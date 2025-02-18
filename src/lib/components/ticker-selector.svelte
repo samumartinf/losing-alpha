@@ -1,7 +1,7 @@
 <script lang="ts">
     import Search from "lucide-svelte/icons/search";
     import { Input } from "$lib/components/ui/input/index.js";
-    import { findTicker, findTickerOffline } from "$lib/utils/market";
+    import { findTicker } from "$lib/utils/market";
     import type { AlphaVantageMatch } from "$lib/utils/market";
 
     // Props

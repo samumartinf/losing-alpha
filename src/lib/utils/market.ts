@@ -105,32 +105,44 @@ export interface AlphaVantageSearchResponse {
 }
 
 /**
- * Finds a ticker for a given symbol using the Alpha Vantage API.
+ * Finds a ticker by searching the local securities database.
+ * Falls back to Alpha Vantage API if useApi is true.
  * 
- * @param symbol - The symbol to search for
- * @returns Promise resolving to the response from the Alpha Vantage API
+ * @param symbol - The symbol or name to search for
+ * @param useApi - Whether to use the Alpha Vantage API as fallback (default: false)
+ * @returns Promise resolving to array of matching tickers
  */
-export async function findTicker(symbol: string): Promise<AlphaVantageMatch[]> {
-    var apiKey = import.meta.env.VITE_ALPHA_VANTAGE_API_KEY;
-    var url = `${ALPHA_VANTAGE_API_URL}?function=SYMBOL_SEARCH&keywords=${symbol}&apikey=${apiKey}`;
+export async function findTicker(symbol: string, useApi: boolean = false): Promise<AlphaVantageMatch[]> {
     try {
-        var response = await fetch(url);
-        var data = await response.json() as AlphaVantageSearchResponse;
-        return data.bestMatches;
+        // First try local database
+        const response = await fetch(`/api/ticker/search?q=${encodeURIComponent(symbol)}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch from local database');
+        }
+        const data = await response.json();
+        
+        // If we have local results or don't want to use API, return local results
+        if (data.matches.length > 0 || !useApi) {
+            return data.matches;
+        }
+
+        if (useApi) {
+            return await findTickerAlphaVantage(symbol);
+        }
+
     } catch (err) {
         console.error('Error fetching ticker:', err);
         return [];
     }
 }
 
-export async function findTickerOffline(symbol: string): Promise<AlphaVantageMatch[]> {
+async function findTickerAlphaVantage(symbol: string): Promise<AlphaVantageMatch[]> {
     try {
-        const response = await fetch(`/api/ticker/search?q=${encodeURIComponent(symbol)}`);
-        if (!response.ok) {
-            throw new Error('Failed to fetch ticker data');
-        }
-        const data = await response.json();
-        return data.matches;
+        const apiKey = import.meta.env.VITE_ALPHA_VANTAGE_API_KEY;
+        const url = `${ALPHA_VANTAGE_API_URL}?function=SYMBOL_SEARCH&keywords=${symbol}&apikey=${apiKey}`;
+        const apiResponse = await fetch(url);
+        const apiData = await apiResponse.json() as AlphaVantageSearchResponse;
+        return apiData.bestMatches;
     } catch (err) {
         console.error('Error fetching ticker:', err);
         return [];
