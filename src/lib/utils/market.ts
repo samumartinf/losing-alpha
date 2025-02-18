@@ -122,3 +122,49 @@ export async function findTicker(symbol: string): Promise<AlphaVantageMatch[]> {
         return [];
     }
 }
+
+export async function findTickerOffline(symbol: string): Promise<AlphaVantageMatch[]> {
+    try {
+        const response = await fetch(`/api/ticker/search?q=${encodeURIComponent(symbol)}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch ticker data');
+        }
+        const data = await response.json();
+        return data.matches;
+    } catch (err) {
+        console.error('Error fetching ticker:', err);
+        return [];
+    }
+}
+
+export interface AlphaVantageDailyResponse {
+    "Time Series (Daily)": {
+        [date: string]: {
+            "1. open": string;
+            "2. high": string;
+            "3. low": string;
+            "4. close": string;
+            "5. volume": string;
+        }
+    }
+}
+
+/**
+ * Fetches daily OHLCV (Open, High, Low, Close, Volume) data for a given ticker symbol using the Alpha Vantage API.
+ * 
+ * @param ticker - The stock ticker symbol to fetch data for (e.g. 'AAPL', 'MSFT')
+ * @returns Promise resolving to daily time series data containing OHLCV values, or null if the request fails
+ * @throws Will log but not throw errors if the API request fails
+ */
+export async function fetchDailyOHLCV(ticker: string): Promise<AlphaVantageDailyResponse | null> {
+    var apiKey = import.meta.env.VITE_ALPHA_VANTAGE_API_KEY;
+    try {
+        var url = `${ALPHA_VANTAGE_API_URL}?function=TIME_SERIES_DAILY&symbol=${ticker}&apikey=${apiKey}`;
+        var response = await fetch(url);
+        var data = await response.json() as AlphaVantageDailyResponse;
+        return data;
+    } catch (err) {
+        console.error('Error fetching market data:', err);
+        return null;
+    }
+}

@@ -14,8 +14,8 @@
 			icon: House
 		},
 		{
-			title: 'Inbox',
-			url: '#',
+			title: 'Auth',
+			url: '/auth',
 			icon: Inbox
 		},
 		{
@@ -30,7 +30,7 @@
 		},
 		{
 			title: 'Settings',
-			url: '/auth',
+			url: '/settings',
 			icon: Settings
 		}
 	];

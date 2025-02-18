@@ -1,34 +1,25 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import { fetchCryptoData, fetchStockData } from '$lib/utils/market';
+	import {
+		fetchCryptoData,
+		fetchStockData,
+		fetchDailyOHLCV,
+		type AlphaVantageMatch,
+		type AlphaVantageDailyResponse
+	} from '$lib/utils/market';
 	import type { MarketData } from '$lib/utils/market';
 	import MarketCard from '$lib/components/market-card.svelte';
 	import CandleChart from '$lib/components/candle-chart.svelte';
 	import type { CandleData } from '$lib/types';
-	import { echarts } from '@/lib/components/ui/echarts/echarts';
 	import { Button } from '@/lib/components/ui/button';
+	import TickerSelector from '@/lib/components/ticker-selector.svelte';
 
 	let marketData = $state<MarketData[]>([]);
 	let candleData = $state<CandleData[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
-    let lineData = $state([150, 230, 224, 218, 135, 147, 260])
-
-	let option = $derived({
-		xAxis: {
-			type: 'category',
-			data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-		},
-		yAxis: {
-			type: 'value'
-		},
-		series: [
-			{
-				data: lineData,
-				type: 'line'
-			}
-		]
-	});
+	let lineData = $state([150, 230, 224, 218, 135, 147, 260]);
+	let selectedTicker = $state('');
 
 	const cryptoCoins = ['bitcoin', 'ethereum', 'cardano', 'solana'];
 
@@ -61,7 +52,7 @@
 			marketData = [...(stockData ? [stockData] : []), ...cryptoData];
 
 			// Use the transformed data
-			candleData = transformedCandleData;
+			// candleData = transformedCandleData;
 		} catch (err) {
 			console.error('Error fetching market data:', err);
 			error = 'Failed to fetch market data. Please try again later.';
@@ -70,9 +61,33 @@
 		}
 	}
 
-    function addData() {
-        candleData = transformedCandleData.slice(0, -50);
-    }
+	function transformCandleData(marketData: AlphaVantageDailyResponse): CandleData[] {
+		const transformedData: CandleData[] = Object.entries(marketData['Time Series (Daily)']).map(([date, values]) => ({
+			date,
+			open: parseFloat(values['1. open']),
+			high: parseFloat(values['2. high']),
+			low: parseFloat(values['3. low']),
+			close: parseFloat(values['4. close']),
+			// volume: parseFloat(values['5. volume'])
+		}));
+		transformedData.reverse();
+		return transformedData;
+	}
+
+	async function updateCandleChartData() {
+		const marketData = await fetchDailyOHLCV(selectedTicker);
+		if (!marketData) {
+			//TODO: Handle error
+			return;
+		}
+		const transformedCandleData = transformCandleData(marketData);
+		candleData = transformedCandleData.slice(0, -50);
+	}
+
+	function handleTickerSelect(ticker: AlphaVantageMatch) {
+		selectedTicker = ticker['1. symbol'];
+		console.log(selectedTicker);
+	}
 
 	// Refresh data every 60 seconds
 	const interval = setInterval(fetchAllMarketData, 60000);
@@ -85,11 +100,13 @@
 	onDestroy(() => {
 		clearInterval(interval);
 	});
-
 </script>
 
 <div class="mx-auto p-4">
 	<h1 class="mb-6 text-3xl font-bold">Market Overview</h1>
+    <TickerSelector onSelect={handleTickerSelect} />
+
+	<Button onclick={updateCandleChartData}>Update</Button>
 
 	{#if error}
 		<div class="mb-4 rounded border border-red-400 bg-red-100 px-4 py-3 text-red-700" role="alert">
@@ -100,7 +117,7 @@
 	<div class="mb-8" id="chart-container">
 		<h2 class="mb-4 text-2xl font-semibold">Price Chart</h2>
 		<div class="rounded-lg bg-white p-4 shadow-lg">
-			<CandleChart bind:data={candleData} theme="light" chartId="myChart"/>
+			<CandleChart bind:data={candleData} theme="light" chartId="myChart" />
 		</div>
 	</div>
 
@@ -118,6 +135,4 @@
 			{/each}
 		</div>
 	{/if}
-
-    <Button onclick={addData}>Do me</Button>
 </div>
