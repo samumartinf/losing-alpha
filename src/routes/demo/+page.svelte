@@ -4,6 +4,7 @@
 		fetchCryptoData,
 		fetchStockData,
 		fetchDailyOHLCV,
+		fetchKrakenOHLCV,
 		type AlphaVantageMatch,
 		type AlphaVantageDailyResponse
 	} from '$lib/utils/market';
@@ -16,6 +17,7 @@
 
 	let marketData = $state<MarketData[]>([]);
 	let candleData = $state<CandleData[]>([]);
+	let krakenCandleData = $state<CandleData[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let lineData = $state([150, 230, 224, 218, 135, 147, 260]);
@@ -52,7 +54,7 @@
 			marketData = [...(stockData ? [stockData] : []), ...cryptoData];
 
 			// Use the transformed data
-			// candleData = transformedCandleData;
+			candleData = transformedCandleData;
 		} catch (err) {
 			console.error('Error fetching market data:', err);
 			error = 'Failed to fetch market data. Please try again later.';
@@ -61,7 +63,7 @@
 		}
 	}
 
-	function transformCandleData(marketData: AlphaVantageDailyResponse): CandleData[] {
+	function transformCandleData(marketData: AlphaVantageDailyResponse, reverse: boolean = true): CandleData[] {
 		const transformedData: CandleData[] = Object.entries(marketData['Time Series (Daily)']).map(([date, values]) => ({
 			date,
 			open: parseFloat(values['1. open']),
@@ -70,8 +72,20 @@
 			close: parseFloat(values['4. close']),
 			// volume: parseFloat(values['5. volume'])
 		}));
-		transformedData.reverse();
+		if (reverse) {
+			transformedData.reverse();
+		}
 		return transformedData;
+	}
+
+	async function fetchKrakenData() {
+		const krakenData = await fetchKrakenOHLCV('XXBTZUSD');
+		console.log(krakenData);
+		if (!krakenData) {
+			//TODO: Handle error
+			return;
+		}
+		krakenCandleData = transformCandleData(krakenData, false);
 	}
 
 	async function updateCandleChartData() {
@@ -107,7 +121,7 @@
     <TickerSelector onSelect={handleTickerSelect} />
 
 	<Button onclick={updateCandleChartData}>Update</Button>
-
+	<Button onclick={fetchKrakenData}>Fetch Kraken Data</Button>
 	{#if error}
 		<div class="mb-4 rounded border border-red-400 bg-red-100 px-4 py-3 text-red-700" role="alert">
 			<p>{error}</p>
@@ -118,6 +132,7 @@
 		<h2 class="mb-4 text-2xl font-semibold">Price Chart</h2>
 		<div class="rounded-lg bg-white p-4 shadow-lg">
 			<CandleChart bind:data={candleData} theme="light" chartId="myChart" />
+			<CandleChart bind:data={krakenCandleData} theme="light" chartId="krakenChart" />
 		</div>
 	</div>
 

@@ -3,6 +3,7 @@ import { error } from '@sveltejs/kit';
 const CRYPTO_API_URL = 'https://api.coingecko.com/api/v3';
 const STOCK_API_URL = 'https://finnhub.io/api/v1';
 const ALPHA_VANTAGE_API_URL = 'https://www.alphavantage.co/query';
+const KRAKEN_API_URL = 'https://api.kraken.com/0/public';
 export type MarketData = {
     symbol: string;
     name: string;
@@ -130,6 +131,7 @@ export async function findTicker(symbol: string, useApi: boolean = false): Promi
             return await findTickerAlphaVantage(symbol);
         }
 
+        return []; // Add explicit return for empty results
     } catch (err) {
         console.error('Error fetching ticker:', err);
         return [];
@@ -177,6 +179,83 @@ export async function fetchDailyOHLCV(ticker: string): Promise<AlphaVantageDaily
         return data;
     } catch (err) {
         console.error('Error fetching market data:', err);
+        return null;
+    }
+}
+
+interface KrakenOHLCResult {
+    [key: string]: Array<[
+        number,   // time
+        string,   // open
+        string,   // high
+        string,   // low
+        string,   // close
+        string,   // vwap
+        string,   // volume
+        number    // count
+    ]>;
+}
+
+export interface KrakenOHLCResponse {
+    error: string[];
+    result: KrakenOHLCResult & {
+        last: number;
+    };
+}
+
+/**
+ * Fetches OHLC data from Kraken API and converts it to AlphaVantage format for compatibility
+ * 
+ * @param pair - Trading pair (e.g. 'BTCUSD')
+ * @param interval - Time interval in minutes (1, 5, 15, 30, 60, 240, 1440, 10080, 21600)
+ * @param since - Return data since given timestamp (optional)
+ * @returns Promise resolving to AlphaVantageDailyResponse format
+ */
+export async function fetchKrakenOHLCV(
+    pair: string,
+    interval: number = 1440,
+    since?: number
+): Promise<AlphaVantageDailyResponse | null> {
+    try {
+        const url = new URL(`${KRAKEN_API_URL}/OHLC`);
+        url.searchParams.append('pair', pair);
+        url.searchParams.append('interval', interval.toString());
+        if (since) {
+            url.searchParams.append('since', since.toString());
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error('Failed to fetch from Kraken API');
+        }
+
+        const data = await response.json() as KrakenOHLCResponse;
+        
+        if (data.error && data.error.length > 0) {
+            throw new Error(`Kraken API error: ${data.error.join(', ')}`);
+        }
+
+        // Convert to AlphaVantage format
+        const timeSeries: { [key: string]: any } = {};
+        console.log(data.result);
+        const ohlcData = data.result[pair];
+
+        ohlcData.forEach(([time, open, high, low, close, _vwap, volume]) => {
+            const date = new Date(time * 1000).toISOString().split('T')[0];
+            timeSeries[date] = {
+                "1. open": open,
+                "2. high": high,
+                "3. low": low,
+                "4. close": close,
+                "5. volume": volume
+            };
+        });
+
+        return {
+            "Time Series (Daily)": timeSeries
+        };
+    } catch (err) {
+        console.error('Error fetching Kraken OHLCV data:', err);
         return null;
     }
 }
