@@ -109,6 +109,7 @@
 	// Fetch data on mount
 	onMount(() => {
 		fetchAllMarketData();
+		fetchKrakenData();
 	});
 
 	onDestroy(() => {
@@ -116,38 +117,78 @@
 	});
 </script>
 
-<div class="mx-auto p-4">
-	<h1 class="mb-6 text-3xl font-bold">Market Overview</h1>
-    <TickerSelector onSelect={handleTickerSelect} />
+<div class="container mx-auto p-4 space-y-6">
+	<header class="flex flex-col gap-4">
+		<h1 class="text-3xl font-bold">Market Overview</h1>
+		<div class="flex flex-wrap gap-4 items-center">
+			<div class="flex-1 min-w-[300px]">
+				<TickerSelector onSelect={handleTickerSelect} />
+			</div>
+			<div class="flex gap-2">
+				<Button variant="default" onclick={updateCandleChartData}>
+					Update Chart
+				</Button>
+				<Button variant="outline" onclick={fetchKrakenData}>
+					Fetch Kraken Data
+				</Button>
+			</div>
+		</div>
+	</header>
 
-	<Button onclick={updateCandleChartData}>Update</Button>
-	<Button onclick={fetchKrakenData}>Fetch Kraken Data</Button>
 	{#if error}
-		<div class="mb-4 rounded border border-red-400 bg-red-100 px-4 py-3 text-red-700" role="alert">
-			<p>{error}</p>
+		<div class="rounded-lg border-l-4 border-red-500 bg-red-100 p-4" role="alert">
+			<div class="flex">
+				<div class="flex-shrink-0">
+					<!-- You can add an error icon here if you want -->
+				</div>
+				<div class="ml-3">
+					<p class="text-sm text-red-700">{error}</p>
+				</div>
+			</div>
 		</div>
 	{/if}
 
-	<div class="mb-8" id="chart-container">
-		<h2 class="mb-4 text-2xl font-semibold">Price Chart</h2>
-		<div class="rounded-lg bg-white p-4 shadow-lg">
-			<CandleChart bind:data={candleData} theme="light" chartId="myChart" />
-			<CandleChart bind:data={krakenCandleData} theme="light" chartId="krakenChart" />
+	<section class="space-y-4">
+		<h2 class="text-2xl font-semibold">Price Charts</h2>
+		<div class="grid gap-4 lg:grid-cols-2">
+			{#if candleData.length > 0}
+				<div class="rounded-lg bg-white p-4 shadow-lg">
+					<h3 class="mb-4 text-lg font-medium">Stock Data</h3>
+					<CandleChart 
+						bind:data={candleData} 
+						theme="light" 
+						chartId="stockChart" 
+					/>
+				</div>
+			{/if}
+			
+			{#if krakenCandleData.length > 0}
+				<div class="rounded-lg bg-white p-4 shadow-lg">
+					<h3 class="mb-4 text-lg font-medium">Crypto Data</h3>
+					<CandleChart 
+						bind:data={krakenCandleData} 
+						theme="light" 
+						chartId="krakenChart" 
+					/>
+				</div>
+			{/if}
 		</div>
-	</div>
+	</section>
 
-	<h2 class="mb-4 text-2xl font-semibold">Market Prices</h2>
-	{#if loading && marketData.length === 0}
-		<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-			{#each Array(5) as _}
-				<div class="h-32 animate-pulse rounded-lg bg-gray-200"></div>
-			{/each}
-		</div>
-	{:else}
-		<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-			{#each marketData as data (data.symbol)}
-				<MarketCard {data} />
-			{/each}
-		</div>
-	{/if}
+	<section class="space-y-4">
+		<h2 class="text-2xl font-semibold">Market Prices</h2>
+		{#if loading && marketData.length === 0}
+			<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+				{#each Array(5) as _}
+					<div class="h-32 animate-pulse rounded-lg bg-gray-200"></div>
+				{/each}
+			</div>
+		{:else}
+			<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+				{#each marketData as data (data.symbol)}
+					<MarketCard {data} />
+				{/each}
+			</div>
+		{/if}
+	</section>
 </div>
