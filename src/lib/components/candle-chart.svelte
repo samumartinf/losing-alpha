@@ -16,10 +16,25 @@
 	let resizeObserver: ResizeObserver;
 
 	// Reverse the data arrays for display (oldest to newest)
-	let dates = $derived([...data].reverse().map((item: CandleData) => item.date));
+	let reversedData = $derived([...data].reverse());
+	let dates = $derived(reversedData.map((item: CandleData) => item.date));
 	let values = $derived(
-		[...data].reverse().map((item: CandleData) => [item.open, item.close, item.low, item.high])
+		reversedData.map((item: CandleData) => ({
+			value: [
+				Number(item.open),
+				Number(item.close),
+				Number(item.low),
+				Number(item.high)
+			],
+			itemStyle: {
+				color: Number(item.close) >= Number(item.open) ? '#0CF49B' : '#FD1050',
+				borderColor: Number(item.close) >= Number(item.open) ? '#0CF49B' : '#FD1050'
+			}
+		}))
 	);
+
+	$inspect(reversedData);
+	let timestamps = $derived(reversedData.map((item: CandleData) => item.timestamp));
 
 	let series: echarts.CandlestickSeriesOption[] = $derived([
 		{
@@ -35,6 +50,25 @@
 		}
 	]);
 
+	function formatDateTime(timestamp: number): string {
+		const date = new Date(timestamp);
+		return new Intl.DateTimeFormat('en-US', {
+			year: 'numeric',
+			month: 'short',
+			day: '2-digit',
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit',
+			hour12: false
+		}).format(date);
+	}
+
+	function formatPrice(price: number): string {
+		// Use more decimals for lower values, fewer for higher values
+		const decimals = price >= 1000 ? 2 : 4;
+		return price.toFixed(decimals);
+	}
+
 	let options: echarts.EChartsOption = $derived({
 		animation: true,
 		tooltip: {
@@ -47,6 +81,35 @@
 					width: 2,
 					opacity: 1
 				}
+			},
+			formatter: (params: any) => {
+				console.log(params);
+				const candleData = params[0];
+				if (!candleData) return '';
+
+				const index = candleData.dataIndex;
+				const timestamp = timestamps[index];
+				const candleValues = candleData.data.value;
+				const [_, open, close, low, high] = candleValues.map(Number);
+
+				const color = close >= open ? '#0CF49B' : '#FD1050';
+				const changePercent = ((close - open) / open) * 100;
+				const priceChange = close - open;
+
+				return `
+					<div class="font-sans">
+						<div class="font-bold mb-1">${formatDateTime(timestamp)}</div>
+						<div style="color: ${color}">
+							Change: ${formatPrice(priceChange)} (${changePercent.toFixed(2)}%)
+						</div>
+						<div class="mt-1">
+							Open: ${formatPrice(open)}<br/>
+							High: ${formatPrice(high)}<br/>
+							Low: ${formatPrice(low)}<br/>
+							Close: ${formatPrice(close)}
+						</div>
+					</div>
+				`;
 			}
 		},
 		xAxis: {
