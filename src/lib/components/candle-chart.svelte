@@ -1,14 +1,7 @@
 <script lang="ts">
 	import * as echarts from 'echarts';
 	import { onMount } from 'svelte';
-
-	type CandleData = {
-		date: string;
-		open: number;
-		close: number;
-		low: number;
-		high: number;
-	};
+	import type { CandleData } from '$lib/types/market';
 
 	interface CandleProps {
 		data: CandleData[];
@@ -109,10 +102,10 @@
     })
 
     $effect(() => {
-        chart.setOption(options);
-        chart.resize();
+        chart?.setOption(options);
+        chart?.resize();
     })
 
 </script>
 
-<div id={chartId} class="candle-chart-container h-[400px] w-[600px]" ></div>
+<div id={chartId} class="candle-chart-container h-full w-full" ></div>

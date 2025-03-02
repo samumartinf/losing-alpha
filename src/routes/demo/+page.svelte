@@ -3,58 +3,44 @@
 	import {
 		fetchCryptoData,
 		fetchStockData,
-		fetchDailyOHLCV,
-		fetchKrakenOHLCV,
-		type AlphaVantageMatch,
-		type AlphaVantageDailyResponse
+		fetchDailyOHLCVStandardized,
+		fetchKrakenOHLCVStandardized,
 	} from '$lib/utils/market';
-	import type { MarketData } from '$lib/utils/market';
+	import type { MarketData, TimeSeriesData } from '$lib/types/market';
 	import MarketCard from '$lib/components/market-card.svelte';
-	import CandleChart from '$lib/components/candle-chart.svelte';
-	import type { CandleData } from '$lib/types';
+	import TimeSeriesChart from '$lib/components/time-series-chart.svelte';
 	import { Button } from '@/lib/components/ui/button';
 	import TickerSelector from '@/lib/components/ticker-selector.svelte';
-	import { ToggleGroup, ToggleGroupItem } from '@/lib/components/ui/toggle-group';
 
 	let marketData = $state<MarketData[]>([]);
-	let candleData = $state<CandleData[]>([]);
-	let krakenCandleData = $state<CandleData[]>([]);
+	let stockTimeSeriesData = $state<TimeSeriesData>({
+		symbol: '',
+		interval: '1d',
+		candles: [],
+		lastUpdated: Date.now()
+	});
+	let cryptoTimeSeriesData = $state<TimeSeriesData>({
+		symbol: 'BTCUSD',
+		interval: '1d',
+		candles: [],
+		lastUpdated: Date.now()
+	});
 	let loading = $state(true);
 	let error = $state<string | null>(null);
-	let lineData = $state([150, 230, 224, 218, 135, 147, 260]);
 	let selectedTicker = $state('');
-	let selectedTimeRange = $state('1Y');
 	let cryptoTicker = $state('BTCUSD');
 
 	const cryptoCoins = ['bitcoin', 'ethereum', 'cardano', 'solana'];
 
-	const timeRanges = [
-		{ value: '1D', label: '1D' },
-		{ value: '1W', label: '1W' },
-		{ value: '3M', label: '3M' },
-		{ value: '1Y', label: '1Y' },
-		{ value: '5Y', label: '5Y' },
-		{ value: 'MAX', label: 'MAX' }
-	];
-
-	// Add these functions for time range handling
-	function getKrakenInterval(range: string): number {
-		switch (range) {
-			case '1D':
-				return 1;  // 1 minute
-			case '1W':
-				return 15; // 15 minutes
-			case '3M':
-				return 60; // 1 hour
-			case '1Y':
-				return 240; // 4 hours
-			case '5Y':
-			case 'MAX':
-				return 1440; // 1 day
-			default:
-				return 1440;
-		}
-	}
+	// Map time ranges to Kraken intervals (in minutes)
+	const timeRangeToKrakenInterval: Record<string, number> = {
+		'1D': 1,
+		'1W': 15,
+		'3M': 60,
+		'1Y': 1440,
+		'5Y': 10080,
+		'MAX': 10080
+	};
 
 	function getTimestampFromTimeRange(range: string): number {
 		const now = new Date();
@@ -76,31 +62,14 @@
 		}
 	}
 
-	function getAlphaVantageInterval(range: string): string {
-		switch (range) {
-			case '1D':
-				return '1min';
-			case '1W':
-				return '15min';
-			case '3M':
-				return '60min';
-			case '1Y':
-			case '5Y':
-			case 'MAX':
-				return 'daily';
-			default:
-				return 'daily';
-		}
-	}
-
-	async function handleTimeRangeChange(range: string) {
-		selectedTimeRange = range;
+	async function handleStockTimeRangeChange(range: string, interval: string) {
 		if (selectedTicker) {
 			await updateCandleChartData();
 		}
-		if (krakenCandleData.length > 0) {
-			await fetchKrakenData();
-		}
+	}
+
+	async function handleCryptoTimeRangeChange(range: string, interval: string) {
+		await fetchKrakenData(range);
 	}
 
 	async function fetchAllMarketData() {
@@ -123,45 +92,41 @@
 		}
 	}
 
-	function transformCandleData(marketData: AlphaVantageDailyResponse, reverse: boolean = true): CandleData[] {
-		const transformedData: CandleData[] = Object.entries(marketData['Time Series (Daily)']).map(([date, values]) => ({
-			date,
-			open: parseFloat(values['1. open']),
-			high: parseFloat(values['2. high']),
-			low: parseFloat(values['3. low']),
-			close: parseFloat(values['4. close']),
-			// volume: parseFloat(values['5. volume'])
-		}));
-		if (reverse) {
-			transformedData.reverse();
+	async function fetchKrakenData(timeRange: string = '1Y') {
+		try {
+			const interval = timeRangeToKrakenInterval[timeRange] || 1440; // Default to daily
+			const since = getTimestampFromTimeRange(timeRange);
+			
+			const data = await fetchKrakenOHLCVStandardized('XXBTZUSD', interval, since);
+			if (!data) {
+				throw new Error('Failed to fetch Kraken data');
+			}
+			
+			cryptoTimeSeriesData = data;
+		} catch (err) {
+			console.error('Error fetching Kraken data:', err);
+			error = 'Failed to fetch crypto data. Please try again later.';
 		}
-		return transformedData;
-	}
-
-	async function fetchKrakenData() {
-		const interval = getKrakenInterval(selectedTimeRange);
-		const since = getTimestampFromTimeRange(selectedTimeRange);
-		const krakenData = await fetchKrakenOHLCV('XXBTZUSD', interval, since);
-		if (!krakenData) {
-			//TODO: Handle error
-			return;
-		}
-		krakenCandleData = transformCandleData(krakenData, false);
 	}
 
 	async function updateCandleChartData() {
-		const marketData = await fetchDailyOHLCV(selectedTicker);
-		if (!marketData) {
-			//TODO: Handle error
-			return;
+		if (!selectedTicker) return;
+		
+		try {
+			const data = await fetchDailyOHLCVStandardized(selectedTicker);
+			if (!data) {
+				throw new Error('Failed to fetch stock data');
+			}
+			stockTimeSeriesData = data;
+		} catch (err) {
+			console.error('Error fetching stock data:', err);
+			error = 'Failed to fetch stock data. Please try again later.';
 		}
-		const transformedCandleData = transformCandleData(marketData);
-		candleData = transformedCandleData;
 	}
 
-	function handleTickerSelect(ticker: AlphaVantageMatch) {
-		selectedTicker = ticker['1. symbol'];
-		console.log(selectedTicker);
+	function handleTickerSelect(ticker: MarketData) {
+		selectedTicker = ticker.symbol;
+		updateCandleChartData();
 	}
 
 	// Refresh data every 60 seconds
@@ -178,24 +143,19 @@
 	});
 </script>
 
-<div class="container mx-auto p-4 space-y-6">
+<div class="container mx-auto px-4 py-6 space-y-8 max-w-7xl">
 	<header class="flex flex-col gap-4">
-		<h1 class="text-3xl font-bold">Market Overview</h1>
-		<div class="flex flex-wrap gap-4 items-center">
-			<div class="flex-1 min-w-[300px]">
+		<h1 class="text-2xl sm:text-3xl font-bold">Market Overview</h1>
+		<div class="flex flex-col sm:flex-row flex-wrap gap-4 items-start sm:items-center">
+			<div class="w-full sm:w-auto sm:flex-1 min-w-[250px]">
 				<TickerSelector onSelect={handleTickerSelect} />
 			</div>
-			<ToggleGroup type="single" value={selectedTimeRange} onValueChange={handleTimeRangeChange} variant="outline">
-				{#each timeRanges as range}
-					<ToggleGroupItem value={range.value}>{range.label}</ToggleGroupItem>
-				{/each}
-			</ToggleGroup>
 			<div class="flex gap-2">
-				<Button variant="default" onclick={updateCandleChartData}>
+				<Button variant="default" onclick={updateCandleChartData} disabled={!selectedTicker} class="whitespace-nowrap">
 					Update Chart
 				</Button>
-				<Button variant="outline" onclick={fetchKrakenData}>
-					Fetch Kraken Data
+				<Button variant="outline" onclick={() => fetchKrakenData('1Y')} class="whitespace-nowrap">
+					Refresh Crypto
 				</Button>
 			</div>
 		</div>
@@ -215,42 +175,52 @@
 	{/if}
 
 	<section class="space-y-4">
-		<h2 class="text-2xl font-semibold">Price Charts</h2>
-		<div class="grid gap-4 lg:grid-cols-2">
-			{#if candleData.length > 0}
-				<div class="rounded-lg bg-white p-4 shadow-lg">
-					<h3 class="mb-4 text-lg font-medium">{selectedTicker}</h3>
-					<CandleChart 
-						bind:data={candleData} 
+		<h2 class="text-xl sm:text-2xl font-semibold">Price Charts</h2>
+		<div class="grid gap-6 lg:grid-cols-2 grid-cols-1">
+			{#if stockTimeSeriesData.candles.length > 0}
+				<div class="h-[350px] sm:h-[400px] md:h-[450px]">
+					<TimeSeriesChart 
+						timeSeriesData={stockTimeSeriesData}
+						title={selectedTicker} 
 						theme="light" 
-						chartId="stockChart" 
+						chartId="stockChart"
+						onTimeRangeChange={handleStockTimeRangeChange}
 					/>
+				</div>
+			{:else if selectedTicker}
+				<div class="h-[350px] sm:h-[400px] md:h-[450px] flex items-center justify-center rounded-lg bg-white p-4 shadow-lg">
+					<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
 				</div>
 			{/if}
 			
-			{#if krakenCandleData.length > 0}
-				<div class="rounded-lg bg-white p-4 shadow-lg">
-					<h3 class="mb-4 text-lg font-medium">{cryptoTicker}</h3>
-					<CandleChart 
-						bind:data={krakenCandleData} 
+			{#if cryptoTimeSeriesData.candles.length > 0}
+				<div class="h-[350px] sm:h-[400px] md:h-[450px]">
+					<TimeSeriesChart 
+						timeSeriesData={cryptoTimeSeriesData}
+						title={cryptoTicker} 
 						theme="light" 
-						chartId="krakenChart" 
+						chartId="krakenChart"
+						onTimeRangeChange={handleCryptoTimeRangeChange}
 					/>
+				</div>
+			{:else}
+				<div class="h-[350px] sm:h-[400px] md:h-[450px] flex items-center justify-center rounded-lg bg-white p-4 shadow-lg">
+					<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
 				</div>
 			{/if}
 		</div>
 	</section>
 
 	<section class="space-y-4">
-		<h2 class="text-2xl font-semibold">Market Prices</h2>
+		<h2 class="text-xl sm:text-2xl font-semibold">Market Prices</h2>
 		{#if loading && marketData.length === 0}
-			<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+			<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 				{#each Array(5) as _}
 					<div class="h-32 animate-pulse rounded-lg bg-gray-200"></div>
 				{/each}
 			</div>
 		{:else}
-			<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+			<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 				{#each marketData as data (data.symbol)}
 					<MarketCard {data} />
 				{/each}

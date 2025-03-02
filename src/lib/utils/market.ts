@@ -1,16 +1,19 @@
 import { error } from '@sveltejs/kit';
+import type {
+    MarketData,
+    TimeSeriesData,
+    CandleData,
+    AlphaVantageMatch,
+    AlphaVantageSearchResponse,
+    AlphaVantageDailyResponse,
+    KrakenOHLCResponse,
+    KrakenOHLCResult
+} from '$lib/types/market';
 
 const CRYPTO_API_URL = 'https://api.coingecko.com/api/v3';
 const STOCK_API_URL = 'https://finnhub.io/api/v1';
 const ALPHA_VANTAGE_API_URL = 'https://www.alphavantage.co/query';
 const KRAKEN_API_URL = 'https://api.kraken.com/0/public';
-export type MarketData = {
-    symbol: string;
-    name: string;
-    price: number;
-    change24h?: number;
-    type: 'crypto' | 'stock';
-};
 
 /**
  * Fetches current price and 24-hour price change data for specified cryptocurrencies
@@ -89,22 +92,6 @@ export async function fetchStockData(symbol: string): Promise<MarketData | null>
     }
 } 
 
-export interface AlphaVantageMatch {
-    "1. symbol": string;
-    "2. name": string;
-    "3. type": string;
-    "4. region": string;
-    "5. marketOpen": string;
-    "6. marketClose": string;
-    "7. timezone": string;
-    "8. currency": string;
-    "9. matchScore": string;
-}
-
-export interface AlphaVantageSearchResponse {
-    bestMatches: AlphaVantageMatch[];
-}
-
 /**
  * Finds a ticker by searching the local securities database.
  * Falls back to Alpha Vantage API if useApi is true.
@@ -151,15 +138,156 @@ async function findTickerAlphaVantage(symbol: string): Promise<AlphaVantageMatch
     }
 }
 
-export interface AlphaVantageDailyResponse {
-    "Time Series (Daily)": {
-        [date: string]: {
-            "1. open": string;
-            "2. high": string;
-            "3. low": string;
-            "4. close": string;
-            "5. volume": string;
+/**
+ * Converts AlphaVantage daily response to the API-agnostic TimeSeriesData format
+ * 
+ * @param ticker - The stock ticker symbol
+ * @param data - AlphaVantage daily response data
+ * @returns TimeSeriesData object with standardized candle data
+ */
+export function convertAlphaVantageToTimeSeriesData(
+    ticker: string, 
+    data: AlphaVantageDailyResponse
+): TimeSeriesData {
+    const candles: CandleData[] = [];
+    const timeSeries = data["Time Series (Daily)"];
+    
+    for (const dateStr in timeSeries) {
+        const dateData = timeSeries[dateStr];
+        const timestamp = new Date(dateStr).getTime();
+        
+        candles.push({
+            timestamp,
+            date: dateStr,
+            open: parseFloat(dateData["1. open"]),
+            high: parseFloat(dateData["2. high"]),
+            low: parseFloat(dateData["3. low"]),
+            close: parseFloat(dateData["4. close"]),
+            volume: parseFloat(dateData["5. volume"])
+        });
+    }
+    
+    // Sort by timestamp, newest first
+    candles.sort((a, b) => b.timestamp - a.timestamp);
+    
+    return {
+        symbol: ticker,
+        interval: '1d',
+        candles,
+        lastUpdated: Date.now()
+    };
+}
+
+/**
+ * Converts Kraken OHLC response to the API-agnostic TimeSeriesData format
+ * 
+ * @param pair - Trading pair (e.g. 'BTCUSD')
+ * @param data - Kraken OHLC response data
+ * @param interval - Time interval in minutes
+ * @returns TimeSeriesData object with standardized candle data
+ */
+export function convertKrakenToTimeSeriesData(
+    pair: string,
+    data: KrakenOHLCResponse,
+    interval: number
+): TimeSeriesData {
+    const candles: CandleData[] = [];
+    const ohlcData = data.result[pair];
+    
+    ohlcData.forEach(([time, open, high, low, close, _vwap, volume]) => {
+        const timestamp = time * 1000; // Convert to milliseconds
+        const date = new Date(timestamp).toISOString().split('T')[0];
+        
+        candles.push({
+            timestamp,
+            date,
+            open: parseFloat(open),
+            high: parseFloat(high),
+            low: parseFloat(low),
+            close: parseFloat(close),
+            volume: parseFloat(volume)
+        });
+    });
+    
+    // Sort by timestamp, newest first
+    candles.sort((a, b) => b.timestamp - a.timestamp);
+    
+    // Map Kraken interval to standardized interval string
+    const intervalMap: {[key: number]: string} = {
+        1: '1m',
+        5: '5m',
+        15: '15m',
+        30: '30m',
+        60: '1h',
+        240: '4h',
+        1440: '1d',
+        10080: '1w',
+        21600: '15d'
+    };
+    
+    return {
+        symbol: pair,
+        interval: intervalMap[interval] || `${interval}m`,
+        candles,
+        lastUpdated: Date.now()
+    };
+}
+
+/**
+ * Fetches OHLC data from Kraken API and returns it in the standardized TimeSeriesData format
+ * 
+ * @param pair - Trading pair (e.g. 'BTCUSD')
+ * @param interval - Time interval in minutes (1, 5, 15, 30, 60, 240, 1440, 10080, 21600)
+ * @param since - Return data since given timestamp (optional)
+ * @returns Promise resolving to TimeSeriesData format
+ */
+export async function fetchKrakenOHLCVStandardized(
+    pair: string,
+    interval: number = 1440,
+    since?: number
+): Promise<TimeSeriesData | null> {
+    try {
+        const url = new URL(`${KRAKEN_API_URL}/OHLC`);
+        url.searchParams.append('pair', pair);
+        url.searchParams.append('interval', interval.toString());
+        if (since) {
+            url.searchParams.append('since', since.toString());
         }
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error('Failed to fetch from Kraken API');
+        }
+
+        const data = await response.json() as KrakenOHLCResponse;
+        
+        if (data.error && data.error.length > 0) {
+            throw new Error(`Kraken API error: ${data.error.join(', ')}`);
+        }
+
+        return convertKrakenToTimeSeriesData(pair, data, interval);
+    } catch (err) {
+        console.error('Error fetching Kraken OHLCV data:', err);
+        return null;
+    }
+}
+
+/**
+ * Fetches daily OHLCV data for a given ticker symbol using Alpha Vantage API
+ * and returns it in the standardized TimeSeriesData format
+ * 
+ * @param ticker - The stock ticker symbol to fetch data for (e.g. 'AAPL', 'MSFT')
+ * @returns Promise resolving to TimeSeriesData format, or null if the request fails
+ */
+export async function fetchDailyOHLCVStandardized(ticker: string): Promise<TimeSeriesData | null> {
+    try {
+        const data = await fetchDailyOHLCV(ticker);
+        if (!data) return null;
+        
+        return convertAlphaVantageToTimeSeriesData(ticker, data);
+    } catch (err) {
+        console.error('Error fetching standardized market data:', err);
+        return null;
     }
 }
 
@@ -183,34 +311,7 @@ export async function fetchDailyOHLCV(ticker: string): Promise<AlphaVantageDaily
     }
 }
 
-interface KrakenOHLCResult {
-    [key: string]: Array<[
-        number,   // time
-        string,   // open
-        string,   // high
-        string,   // low
-        string,   // close
-        string,   // vwap
-        string,   // volume
-        number    // count
-    ]>;
-}
-
-export interface KrakenOHLCResponse {
-    error: string[];
-    result: KrakenOHLCResult & {
-        last: number;
-    };
-}
-
-/**
- * Fetches OHLC data from Kraken API and converts it to AlphaVantage format for compatibility
- * 
- * @param pair - Trading pair (e.g. 'BTCUSD')
- * @param interval - Time interval in minutes (1, 5, 15, 30, 60, 240, 1440, 10080, 21600)
- * @param since - Return data since given timestamp (optional)
- * @returns Promise resolving to AlphaVantageDailyResponse format
- */
+// Keep the original fetchKrakenOHLCV for backward compatibility
 export async function fetchKrakenOHLCV(
     pair: string,
     interval: number = 1440,
@@ -237,7 +338,6 @@ export async function fetchKrakenOHLCV(
 
         // Convert to AlphaVantage format
         const timeSeries: { [key: string]: any } = {};
-        console.log(data.result);
         const ohlcData = data.result[pair];
 
         ohlcData.forEach(([time, open, high, low, close, _vwap, volume]) => {
