@@ -1,34 +1,39 @@
 <script lang="ts">
 	import * as echarts from 'echarts';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import type { CandleData } from '$lib/types/market';
 
 	interface CandleProps {
 		data: CandleData[];
 		theme: 'light' | 'dark';
-        chartId: string;
+		chartId: string;
 	}
 
 	let { data = $bindable(), theme = 'light', chartId = 'myChart' }: CandleProps = $props();
 
-	let chart: echarts.ECharts;
+	let chart: echarts.ECharts | null = null;
+	let chartContainer: HTMLDivElement;
+	let resizeObserver: ResizeObserver;
 
-	let dates = $derived(data.map((item: CandleData) => item.date));
-	let values = $derived(data.map((item: CandleData) => [item.open, item.close, item.low, item.high]));
+	// Reverse the data arrays for display (oldest to newest)
+	let dates = $derived([...data].reverse().map((item: CandleData) => item.date));
+	let values = $derived(
+		[...data].reverse().map((item: CandleData) => [item.open, item.close, item.low, item.high])
+	);
 
-    let series: echarts.CandlestickSeriesOption[] = $derived([
-			{
-				type: 'candlestick',
-				name: 'Price',
-				data: values,
-				itemStyle: {
-					color: '#0CF49B',
-					color0: '#FD1050',
-					borderColor: '#0CF49B',
-					borderColor0: '#FD1050'
-				}
+	let series: echarts.CandlestickSeriesOption[] = $derived([
+		{
+			type: 'candlestick',
+			name: 'Price',
+			data: values,
+			itemStyle: {
+				color: '#0CF49B',
+				color0: '#FD1050',
+				borderColor: '#0CF49B',
+				borderColor0: '#FD1050'
 			}
-		]); 
+		}
+	]);
 
 	let options: echarts.EChartsOption = $derived({
 		animation: true,
@@ -93,19 +98,53 @@
 		series
 	});
 
-    onMount(() => {
-        const chartDiv = document.getElementById(chartId);
-        if (!chartDiv) return;
+	function initChart() {
+		if (!chartContainer) return;
 
-        chart = echarts.init(chartDiv, theme);
-        chart.setOption(options);
-    })
+		// Dispose of existing chart if it exists
+		if (chart) {
+			chart.dispose();
+		}
 
-    $effect(() => {
-        chart?.setOption(options);
-        chart?.resize();
-    })
+		chart = echarts.init(chartContainer, theme);
+		chart.setOption(options);
+	}
 
+	function handleResize() {
+		if (chart) {
+			chart.resize();
+		}
+	}
+
+	onMount(() => {
+		initChart();
+
+		// Set up the resize observer
+		resizeObserver = new ResizeObserver(() => {
+			handleResize();
+		});
+
+		resizeObserver.observe(chartContainer);
+	});
+
+	onDestroy(() => {
+		// Clean up the resize observer
+		if (resizeObserver) {
+			resizeObserver.disconnect();
+		}
+
+		// Dispose of the chart
+		if (chart) {
+			chart.dispose();
+			chart = null;
+		}
+	});
+
+	$effect(() => {
+		if (chart) {
+			chart.setOption(options);
+		}
+	});
 </script>
 
-<div id={chartId} class="candle-chart-container h-full w-full" ></div>
+<div bind:this={chartContainer} id={chartId} class="candle-chart-container h-full w-full"></div>
