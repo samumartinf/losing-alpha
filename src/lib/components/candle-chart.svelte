@@ -83,7 +83,6 @@
 				}
 			},
 			formatter: (params: any) => {
-				console.log(params);
 				const candleData = params[0];
 				if (!candleData) return '';
 

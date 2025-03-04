@@ -6,7 +6,7 @@
 		fetchDailyOHLCVStandardized,
 		fetchKrakenOHLCVStandardized,
 	} from '$lib/utils/market';
-	import type { MarketData, TimeSeriesData } from '$lib/types/market';
+	import type { MarketData, TimeSeriesData, AlphaVantageMatch } from '$lib/types/market';
 	import MarketCard from '$lib/components/market-card.svelte';
 	import TimeSeriesChart from '$lib/components/time-series-chart.svelte';
 	import { Button } from '@/lib/components/ui/button';
@@ -117,6 +117,7 @@
 			if (!data) {
 				throw new Error('Failed to fetch stock data');
 			}
+			console.log('Successfully fetched stock data', data);
 			stockTimeSeriesData = data;
 		} catch (err) {
 			console.error('Error fetching stock data:', err);
@@ -124,8 +125,9 @@
 		}
 	}
 
-	function handleTickerSelect(ticker: MarketData) {
-		selectedTicker = ticker.symbol;
+	function handleTickerSelect(ticker: AlphaVantageMatch) {
+		console.log('handleTickerSelect', ticker);
+		selectedTicker = ticker['1. symbol'];
 		updateCandleChartData();
 	}
 

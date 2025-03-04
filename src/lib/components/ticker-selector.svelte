@@ -2,11 +2,11 @@
     import Search from "lucide-svelte/icons/search";
     import { Input } from "$lib/components/ui/input/index.js";
     import { findTicker } from "$lib/utils/market";
-    import type { AlphaVantageMatch } from "$lib/utils/market";
+    import type { AlphaVantageMatch } from "$lib/types/market";
 
     // Props
     let props = $props<{
-        onSelect?: (ticker: AlphaVantageMatch) => void;
+        onSelect?: (ticker: AlphaVantageMatch) => void; 
     }>();
     
     let searchTerm = $state("");
@@ -26,8 +26,6 @@
         if (searchTimeout) {
             clearTimeout(searchTimeout);
         }
-
-        console.log(term);
 
         // Don't search if term is too short
         if (term.length < 3) {
