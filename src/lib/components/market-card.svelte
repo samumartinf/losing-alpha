@@ -1,6 +1,6 @@
 <script lang="ts">
     import { Card } from "$lib/components/ui/card";
-    import type { MarketData } from "$lib/utils/market";
+    import type { MarketData } from "$lib/types/market";
     
     let { data }: { data: MarketData } = $props();
     
