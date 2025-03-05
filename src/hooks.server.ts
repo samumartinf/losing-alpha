@@ -1,14 +1,9 @@
 import type { Handle } from '@sveltejs/kit';
 import * as auth from '$lib/server/auth.js';
 import { getLoginUrl, getApplicationUrl } from '$lib/utils';
+import { publicRoutes } from '$lib/utils'
 
-// Define public routes that don't require authentication
-const publicRoutes = [
-	'/auth/login',
-	'/auth/register',
-	'/terms',
-	'/privacy'
-];
+
 
 const handleAuth: Handle = async ({ event, resolve }) => {
 	const sessionToken = event.cookies.get(auth.sessionCookieName);

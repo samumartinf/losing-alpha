@@ -1,6 +1,14 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+export const publicRoutes = [
+	'/',
+	'/auth/login',
+	'/auth/register',
+	'/terms',
+	'/privacy'
+]
+
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
@@ -19,7 +27,6 @@ export function getApplicationUrl() {
  * @returns boolean indicating if the route requires authentication
  */
 export function isProtectedRoute(path: string): boolean {
-	const publicRoutes = ['/', '/auth/login', '/auth/register', '/terms', '/privacy'];
 	return !publicRoutes.some(route => 
 		path === route || path.startsWith(route + '/')
 	);
