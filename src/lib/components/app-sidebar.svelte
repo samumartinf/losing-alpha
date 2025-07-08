@@ -10,12 +10,12 @@
 	const items = [
 		{
 			title: 'Home',
-			url: '#',
+			url: '/app',
 			icon: House
 		},
 		{
 			title: 'Auth',
-			url: '/auth',
+			url: '/app/profile',
 			icon: Inbox
 		},
 		{
@@ -25,12 +25,12 @@
 		},
 		{
 			title: 'Search',
-			url: '#',
+			url: '/app/secmaster',
 			icon: Search
 		},
 		{
 			title: 'Settings',
-			url: '/settings',
+			url: '/app/settings',
 			icon: Settings
 		}
 	];
